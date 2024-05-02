@@ -1,0 +1,29 @@
+name: GitHub Build and Publish Temporary Workaround
+
+on:
+  push:
+    branches:
+    - features/data_uri_support_siaconsulting
+
+# This removes all unnecessary permissions, the ones needed will be set below.
+# https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token
+permissions: {}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Dump Package properties
+        run: |
+          eng/common/scripts/Save-Package-Properties.ps1 -ServiceDirectory openai -OutDirectory tmp/packageInfo
+        shell: pwsh
+      - name: Build
+        run: |
+          buildnumber=$(date +%Y%m%d).${{github.run_number}}
+          dotnet pack eng/service.proj -warnaserror /p:ValidateRunApiCompat=true \
+            /p:SDKType=all /p:ServiceDirectory=openai /p:IncludeTests=false /p:PublicSign=false \
+            /p:OfficialBuildId=$buildnumber /p:SkipDevBuildNumber=false /p:Configuration=Release \
+            /p:CommitSHA=${{github.sha}} /p:ArtifactsPackagesDir=packages/release
